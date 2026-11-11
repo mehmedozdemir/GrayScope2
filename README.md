@@ -49,6 +49,11 @@ dotnet test                  # xUnit v3, Microsoft.Testing.Platform
 ./scripts/publish.ps1        # tek dosya, self-contained win-x64 → publish/win-x64
 ```
 
+GitHub Release: `CHANGELOG.md`'ye `## [x.y.z] - YYYY-AA-GG` bölümünü ekleyip commit'leyin, ardından
+`git tag vx.y.z && git push origin vx.y.z`. `Release` workflow'u testleri çalıştırır, win-x64 zip'ini
+(+ SHA-256) üretir ve notları CHANGELOG'daki bölümden alarak sürümü yayınlar. `-` içeren etiketler
+(ör. `v0.2.0-beta.1`) ön sürüm olarak işaretlenir.
+
 ## Yapılandırma
 
 | Değişken | Açıklama | Varsayılan |

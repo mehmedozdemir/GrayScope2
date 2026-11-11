@@ -27,6 +27,8 @@ Bu projedeki tüm önemli değişiklikler bu dosyada belgelenir. Format
 - JSON yedekleme/geri yükleme (v3; GrayScope 1 v1/v2 okunur) ve GrayScope 1 veritabanından içe
   aktarma (Fernet token çözümü dahil).
 - Açık/koyu tema, karşılama ekranı, klavye kısayolları.
+- `Release` GitHub Actions workflow'u: `v*.*.*` etiketiyle test, tek dosya win-x64 paketi,
+  SHA-256 ve CHANGELOG'dan sürüm notlarıyla GitHub Release.
 
 ### Changed
 - Arayüz yeniden tasarlandı: temel punto 14 → 12,5, başlıklar 15, bölüm etiketleri büyük harf

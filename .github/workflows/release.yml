@@ -1,0 +1,87 @@
+name: Release
+
+# Push a SemVer tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`) to build and publish a release.
+# Release notes come from the matching `## [x.y.z]` section of CHANGELOG.md.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      RUNTIME: win-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Tag '$tag' is not SemVer (vX.Y.Z)." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Restore (locked)
+        run: dotnet restore --locked-mode
+
+      - name: Build (warnings are errors)
+        run: dotnet build --no-restore -c Release -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Publish single-file exe
+        run: >
+          dotnet publish src/GrayScope.App/GrayScope.App.csproj -c Release -r ${{ env.RUNTIME }}
+          --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.version.outputs.version }} -o publish/${{ env.RUNTIME }}
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $name = "GrayScope2-${{ steps.version.outputs.version }}-${{ env.RUNTIME }}"
+          $zip = "$name.zip"
+          Get-ChildItem "publish/${{ env.RUNTIME }}" -Include *.pdb,*.xml -Recurse | Remove-Item
+          Compress-Archive -Path "publish/${{ env.RUNTIME }}/*" -DestinationPath $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zip" | Set-Content "$zip.sha256" -Encoding ascii
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Extract release notes
+        shell: pwsh
+        run: |
+          $version = [regex]::Escape("${{ steps.version.outputs.version }}")
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $start = ($lines | Select-String -Pattern "^## \[$version\]" | Select-Object -First 1).LineNumber
+          if (-not $start) { throw "CHANGELOG.md has no '## [${{ steps.version.outputs.version }}]' section." }
+          $notes = foreach ($line in $lines[$start..($lines.Count - 1)]) {
+            if ($line -match '^## \[') { break }
+            $line
+          }
+          ($notes -join "`n").Trim() | Set-Content release-notes.md -Encoding utf8
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $releaseArgs = @(
+            "release", "create", "${{ github.ref_name }}",
+            "${{ steps.package.outputs.zip }}", "${{ steps.package.outputs.zip }}.sha256",
+            "--title", "GrayScope 2 ${{ steps.version.outputs.version }}",
+            "--notes-file", "release-notes.md", "--verify-tag"
+          )
+          if ("${{ steps.version.outputs.prerelease }}" -eq "true") { $releaseArgs += "--prerelease" }
+          gh @releaseArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
