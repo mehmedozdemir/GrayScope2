@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure domain + application logic. No UI, no SQLite, no HTTP: only abstractions. -->
+  <PropertyGroup>
+    <RootNamespace>GrayScope.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrayScope.Core.Tests" />
+  </ItemGroup>
+</Project>

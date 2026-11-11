@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GrayScope.App.ViewModels"
+             x:Class="GrayScope.App.Views.TimeRangeEditor"
+             x:DataType="vm:TimeRangeEditorViewModel">
+  <StackPanel Spacing="12" MinWidth="320">
+    <Border Classes="segmented">
+      <StackPanel Orientation="Horizontal">
+        <RadioButton Content="Göreli" IsChecked="{Binding IsRelative}" />
+        <RadioButton Content="Anahtar kelime" IsChecked="{Binding IsKeyword}" />
+        <RadioButton Content="Mutlak" IsChecked="{Binding IsAbsolute}" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Spacing="10" IsVisible="{Binding IsRelative}">
+      <ItemsControl ItemsSource="{x:Static vm:TimeRangeEditorViewModel.Presets}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel ItemSpacing="4" LineSpacing="4" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:TimeRangePreset">
+            <Button Content="{Binding Label}" Padding="9,2" MinHeight="24" FontSize="{DynamicResource FontSizeSm}"
+                    Command="{Binding $parent[UserControl].((vm:TimeRangeEditorViewModel)DataContext).ApplyPresetCommand}"
+                    CommandParameter="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Grid ColumnDefinitions="Auto,84,*" ColumnSpacing="8">
+        <TextBlock Text="Son" VerticalAlignment="Center" Classes="muted" />
+        <NumericUpDown Grid.Column="1" Classes="compact" Value="{Binding RelativeAmount}" Minimum="0" Maximum="100000" Increment="1"
+                       FormatString="0" AutomationProperties.Name="Süre miktarı" />
+        <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:TimeRangeEditorViewModel.Units}"
+                  SelectedItem="{Binding RelativeUnit}" HorizontalAlignment="Stretch" AutomationProperties.Name="Süre birimi" />
+      </Grid>
+      <TextBlock Classes="muted" Text="0 = tüm zamanlar. Her çalıştırmada 'şimdi'ye göre hesaplanır." TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Spacing="6" IsVisible="{Binding IsKeyword}">
+      <TextBox Text="{Binding Keyword}" PlaceholderText="last 2 hours" AutomationProperties.Name="Anahtar kelime" Classes="mono" />
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Graylog'un doğal dil ifadesi: today, yesterday, last 3 days…" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" IsVisible="{Binding IsAbsolute}">
+      <TextBlock Classes="label" Text="Başlangıç" />
+      <TextBlock Grid.Column="1" Classes="label" Text="Bitiş" />
+      <TextBox Grid.Row="1" Text="{Binding FromText}" PlaceholderText="gg.aa.yyyy ss:dd" Classes="mono" AutomationProperties.Name="Başlangıç zamanı" />
+      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ToText}" PlaceholderText="gg.aa.yyyy ss:dd" Classes="mono" AutomationProperties.Name="Bitiş zamanı" />
+    </Grid>
+
+    <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+  </StackPanel>
+</UserControl>

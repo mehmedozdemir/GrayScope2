@@ -1,0 +1,213 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GrayScope.App.ViewModels"
+        xmlns:svc="using:GrayScope.App.Services"
+        xmlns:views="using:GrayScope.App.Views"
+        xmlns:controls="using:GrayScope.App.Controls"
+        x:Class="GrayScope.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="GrayScope 2"
+        Icon="/Assets/grayscope.ico"
+        Width="1440" Height="900" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="34">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding RunSelectedTabCommand}" />
+    <KeyBinding Gesture="F5" Command="{Binding RunSelectedTabCommand}" />
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewQueryCommand}" />
+    <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
+    <KeyBinding Gesture="Ctrl+B" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding OpenSettingsCommand}" />
+  </Window.KeyBindings>
+
+  <Panel>
+    <DockPanel>
+      <!-- ── Title bar ─────────────────────────────────────────────────── -->
+      <controls:WindowTitleBar DockPanel.Dock="Top">
+        <!-- App name and icon are drawn by the platform decorations on the left; the active query sits centred. -->
+        <TextBlock Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="160,0,160,0"
+                   Text="{Binding SelectedTab.Title, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
+      </controls:WindowTitleBar>
+
+      <Grid x:Name="ShellGrid" ColumnDefinitions="264,Auto,*">
+
+        <!-- ── Sidebar: query library ──────────────────────────────────── -->
+        <Border Grid.Column="0" Background="{DynamicResource BgSurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0"
+                IsVisible="{Binding IsSidebarOpen}">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="12,12,12,6" Spacing="10">
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Classes="section" Text="SORGULAR" VerticalAlignment="Center" Margin="4,0,0,0" />
+                <Button Grid.Column="1" Classes="icon" Command="{Binding NewQueryCommand}" CommandParameter="{x:Null}"
+                        ToolTip.Tip="Yeni sorgu (Ctrl+N)" AutomationProperties.Name="Yeni Sorgu">
+                  <PathIcon Data="{StaticResource IconAdd}" />
+                </Button>
+                <Button Grid.Column="2" Classes="icon" Command="{Binding NewFolderCommand}" CommandParameter="{x:Null}"
+                        ToolTip.Tip="Yeni klasör" AutomationProperties.Name="Yeni klasör">
+                  <PathIcon Data="{StaticResource IconFolderAdd}" />
+                </Button>
+              </Grid>
+              <TextBox Text="{Binding SearchText}" PlaceholderText="Ara…" AutomationProperties.Name="Sorgu ara">
+                <TextBox.InnerLeftContent>
+                  <PathIcon Data="{StaticResource IconQuery}" Classes="sm" Margin="8,0,0,0"
+                            Foreground="{DynamicResource TextSecondaryBrush}" />
+                </TextBox.InnerLeftContent>
+              </TextBox>
+            </StackPanel>
+
+            <!-- Footer -->
+            <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,6">
+              <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="icon" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Ayarlar ve Tanımlamalar (Ctrl+,)"
+                        AutomationProperties.Name="Ayarlar">
+                  <PathIcon Data="{StaticResource IconSettings}" />
+                </Button>
+                <Button Classes="icon" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="Açık / koyu tema"
+                        AutomationProperties.Name="Tema değiştir">
+                  <PathIcon Data="{StaticResource IconTheme}" />
+                </Button>
+              </StackPanel>
+            </Border>
+
+            <Panel>
+              <TreeView x:Name="QueryTree" ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNode}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        Margin="6,0" AutomationProperties.Name="Sorgu ağacı">
+                <TreeView.ItemContainerTheme>
+                  <ControlTheme TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}" x:DataType="vm:TreeNodeViewModel">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                  </ControlTheme>
+                </TreeView.ItemContainerTheme>
+                <TreeView.ItemTemplate>
+                  <TreeDataTemplate DataType="vm:TreeNodeViewModel" ItemsSource="{Binding Children}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7" Background="Transparent" ToolTip.Tip="{Binding Tooltip}">
+                      <PathIcon Grid.Column="0" Data="{StaticResource IconFolder}" Classes="sm" IsVisible="{Binding IsFolder}"
+                                Foreground="{DynamicResource TextSecondaryBrush}" />
+                      <PathIcon Grid.Column="0" Data="{StaticResource IconDocument}" Classes="sm" IsVisible="{Binding IsQuery}"
+                                Foreground="{DynamicResource TextSecondaryBrush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                        <PathIcon Data="{StaticResource IconWarning}" Classes="xs" Foreground="{DynamicResource WarningBrush}"
+                                  IsVisible="{Binding NeedsAttention}" ToolTip.Tip="Bu sorgunun profilinde token tanımlı değil" />
+                        <TextBlock Classes="muted" FontSize="{DynamicResource FontSizeXs}" Text="{Binding Badge}" MaxWidth="80"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                   IsVisible="{Binding Badge, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                      </StackPanel>
+                    </Grid>
+                  </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+              </TreeView>
+
+              <StackPanel IsVisible="{Binding IsTreeEmpty}" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" Margin="24">
+                <TextBlock Text="Sorgu bulunamadı" HorizontalAlignment="Center" FontWeight="Medium" />
+                <TextBlock Classes="muted" TextAlignment="Center" TextWrapping="Wrap"
+                           Text="Yeni bir sorgu oluşturun ya da Ayarlar'dan GrayScope 1 verilerinizi içe aktarın." />
+              </StackPanel>
+            </Panel>
+          </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Column="1" Width="3" Background="Transparent" ResizeDirection="Columns"
+                      IsVisible="{Binding IsSidebarOpen}" />
+
+        <!-- ── Workspace ──────────────────────────────────────────────── -->
+        <Panel Grid.Column="2">
+          <!-- Onboarding: no Graylog server yet -->
+          <Border IsVisible="{Binding ShowOnboarding}" Classes="surface" Padding="28" MaxWidth="480"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="10">
+              <PathIcon Data="{StaticResource IconLogo}" Width="28" Height="28" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Left" />
+              <TextBlock Classes="title" Text="GrayScope 2'ye hoş geldiniz" />
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="19"
+                         Text="Başlamak için bir Graylog sunucusu tanımlayın. GrayScope 1 kullanıyorsanız sorgularınızı, klasörlerinizi ve profillerinizi tek adımda içe aktarabilirsiniz." />
+              <Button Classes="primary" Content="Ayarları aç" Command="{Binding OpenSettingsCommand}" Margin="0,8,0,0" />
+            </StackPanel>
+          </Border>
+
+          <!-- No open tab -->
+          <StackPanel Spacing="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="!HasTabs" />
+                <Binding Path="HasProfiles" />
+              </MultiBinding>
+            </StackPanel.IsVisible>
+            <PathIcon Data="{StaticResource IconLogo}" Width="36" Height="36" Foreground="{DynamicResource BorderStrongBrush}" />
+            <TextBlock HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeLg}" FontWeight="Medium"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Text="Soldan bir sorgu seçin ya da yeni bir sorgu oluşturun" />
+            <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="20" RowSpacing="6" HorizontalAlignment="Center">
+              <TextBlock Grid.Row="0" Classes="muted" Text="Çalıştır" HorizontalAlignment="Right" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Classes="kbd" Text="Ctrl+Enter" />
+              <TextBlock Grid.Row="1" Classes="muted" Text="Yeni sorgu" HorizontalAlignment="Right" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="kbd" Text="Ctrl+N" />
+              <TextBlock Grid.Row="2" Classes="muted" Text="Sekmeyi kapat" HorizontalAlignment="Right" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="kbd" Text="Ctrl+W" />
+              <TextBlock Grid.Row="3" Classes="muted" Text="Alan önerileri" HorizontalAlignment="Right" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="kbd" Text="Ctrl+Space" />
+            </Grid>
+          </StackPanel>
+
+          <TabControl Classes="documents" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
+                      IsVisible="{Binding HasTabs}">
+            <TabControl.ItemTemplate>
+              <DataTemplate DataType="vm:QueryTabViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentBrush}" IsVisible="{Binding IsRunning}"
+                           VerticalAlignment="Center" ToolTip.Tip="Çalışıyor" />
+                  <Ellipse Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" IsVisible="{Binding IsLive}"
+                           VerticalAlignment="Center" ToolTip.Tip="Canlı takip açık" />
+                  <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  <Ellipse Width="5" Height="5" Fill="{DynamicResource WarningBrush}" IsVisible="{Binding IsTemplateDirty}"
+                           VerticalAlignment="Center" ToolTip.Tip="Kaydedilmemiş değişiklik" />
+                  <Button Classes="icon sm tab-close"
+                          Command="{Binding $parent[TabControl].((vm:MainViewModel)DataContext).CloseTabCommand}"
+                          CommandParameter="{Binding}" ToolTip.Tip="Kapat (Ctrl+W)" AutomationProperties.Name="Sekmeyi kapat">
+                    <PathIcon Data="{StaticResource IconClose}" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </TabControl.ItemTemplate>
+            <TabControl.ContentTemplate>
+              <DataTemplate DataType="vm:QueryTabViewModel">
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                  <views:QueryTabView />
+                </Border>
+              </DataTemplate>
+            </TabControl.ContentTemplate>
+          </TabControl>
+        </Panel>
+      </Grid>
+    </DockPanel>
+
+    <!-- ── Toasts (bottom-right) ─────────────────────────────────────── -->
+    <ItemsControl ItemsSource="{Binding Toasts.Items}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                  Margin="20" Width="340">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="svc:ToastItem">
+          <Border Background="{DynamicResource BgElevatedBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1"
+                  CornerRadius="{DynamicResource RadiusMd}" Padding="12,9" BoxShadow="0 6 20 0 #33000000">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource AccentBrush}" />
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}" IsVisible="{Binding IsSuccess}" />
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource WarningBrush}" IsVisible="{Binding IsWarning}" />
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource DangerBrush}" IsVisible="{Binding IsError}" />
+              <SelectableTextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <Button Grid.Column="2" Classes="icon sm" VerticalAlignment="Top"
+                      Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DismissToastCommand}"
+                      CommandParameter="{Binding}" ToolTip.Tip="Kapat" AutomationProperties.Name="Bildirimi kapat">
+                <PathIcon Data="{StaticResource IconClose}" />
+              </Button>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Panel>
+</Window>

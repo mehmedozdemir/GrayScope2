@@ -1,0 +1,26 @@
+# Build output
+bin/
+obj/
+publish/
+artifacts/
+TestResults/
+*.trx
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Runtime data — never commit databases or keys
+*.db
+*.db-shm
+*.db-wal
+secret.key
+data/
+logs/
+
+# Local environment
+.env

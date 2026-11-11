@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GrayScope.Core/GrayScope.Core.csproj" />
+    <Project Path="src/GrayScope.Infrastructure/GrayScope.Infrastructure.csproj" />
+    <Project Path="src/GrayScope.App/GrayScope.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GrayScope.Core.Tests/GrayScope.Core.Tests.csproj" />
+    <Project Path="tests/GrayScope.Infrastructure.Tests/GrayScope.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

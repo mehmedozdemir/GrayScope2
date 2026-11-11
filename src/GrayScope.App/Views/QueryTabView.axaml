@@ -1,0 +1,396 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GrayScope.App.ViewModels"
+             xmlns:views="using:GrayScope.App.Views"
+             xmlns:controls="using:GrayScope.App.Controls"
+             xmlns:domain="using:GrayScope.Core.Domain"
+             xmlns:core="using:GrayScope.Core.Services"
+             x:Class="GrayScope.App.Views.QueryTabView"
+             x:DataType="vm:QueryTabViewModel">
+
+  <Grid RowDefinitions="Auto,96,8,Auto,Auto,Auto,*" Margin="20,14,20,16">
+
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,10">
+      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <TextBlock Classes="title" Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis" />
+        <Border Classes="badge" ToolTip.Tip="Sorgunun kayıtlı Graylog profili">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <PathIcon Data="{StaticResource IconServer}" Classes="xs" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="{Binding ProfileName}" FontSize="{DynamicResource FontSizeXs}" Foreground="{DynamicResource TextSecondaryBrush}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" IsVisible="{Binding IsTemplateDirty}" VerticalAlignment="Center" Margin="6,0,0,0">
+        <Ellipse Width="6" Height="6" Fill="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+        <TextBlock Classes="muted" Text="Kaydedilmemiş değişiklik" VerticalAlignment="Center" />
+        <Button Classes="link" Content="Kaydet" Command="{Binding SaveChangesCommand}"
+                ToolTip.Tip="Sorgu metni, zaman aralığı ve limiti kalıcı olarak kaydet" />
+        <TextBlock Classes="muted" Text="·" VerticalAlignment="Center" />
+        <Button Classes="link" Content="Geri al" Command="{Binding RevertTemplateCommand}" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+        <Button Classes="icon" ToolTip.Tip="Çalıştırma geçmişi" AutomationProperties.Name="Çalıştırma geçmişi"
+                Command="{Binding LoadHistoryCommand}">
+          <PathIcon Data="{StaticResource IconHistory}" />
+          <Button.Flyout>
+            <Flyout Placement="BottomEdgeAlignedRight">
+              <StackPanel Width="360" Spacing="8">
+                <TextBlock Classes="section" Text="SON ÇALIŞTIRMALAR" Margin="8,0,0,0" />
+                <TextBlock Classes="muted" Text="Henüz çalıştırma yok." Margin="8,0" IsVisible="{Binding !History.Count}" />
+                <ScrollViewer MaxHeight="340">
+                  <ItemsControl ItemsSource="{Binding History}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="domain:QueryRun">
+                        <Button Classes="row"
+                                Command="{Binding $parent[UserControl].((vm:QueryTabViewModel)DataContext).ApplyHistoryCommand}"
+                                CommandParameter="{Binding}" ToolTip.Tip="Bu çalıştırmanın parametrelerini uygula">
+                          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="2">
+                            <TextBlock Text="{Binding RunAt, StringFormat='{}{0:dd.MM.yyyy HH:mm:ss}', Converter={x:Static views:Converters.UtcToLocal}}" />
+                            <TextBlock Grid.Column="1" Classes="muted" Text="{Binding ResultCount, StringFormat='{}{0:N0} kayıt'}" />
+                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="muted" TextTrimming="CharacterEllipsis"
+                                       FontFamily="{DynamicResource MonoFont}" FontSize="{DynamicResource FontSizeXs}"
+                                       Text="{Binding Parameters, Converter={x:Static views:Converters.ParametersText}}" />
+                          </Grid>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </StackPanel>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+        <Button Classes="icon" ToolTip.Tip="Sorguyu düzenle" AutomationProperties.Name="Sorguyu düzenle"
+                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditQueryCommand}" CommandParameter="{x:Null}">
+          <PathIcon Data="{StaticResource IconEdit}" />
+        </Button>
+        <Button Classes="icon" ToolTip.Tip="Sorguyu kopyala" AutomationProperties.Name="Sorguyu kopyala"
+                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DuplicateQueryCommand}" CommandParameter="{x:Null}">
+          <PathIcon Data="{StaticResource IconCopy}" />
+        </Button>
+        <Button Classes="icon" ToolTip.Tip="Sorguyu sil" AutomationProperties.Name="Sorguyu sil"
+                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteQueryCommand}" CommandParameter="{x:Null}">
+          <PathIcon Data="{StaticResource IconDelete}" />
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- ── Query editor ────────────────────────────────────────────────── -->
+    <Border Grid.Row="1" Classes="editor">
+      <controls:LuceneEditor Code="{Binding TemplateText}" CompletionFields="{Binding FieldNames}"
+                             AutomationProperties.Name="Sorgu metni" />
+    </Border>
+    <GridSplitter Grid.Row="2" Height="8" Background="Transparent" ResizeDirection="Rows" />
+
+    <!-- ── Parameters ──────────────────────────────────────────────────── -->
+    <StackPanel Grid.Row="3" Spacing="4" Margin="0,0,0,10" IsVisible="{Binding HasParameters}">
+      <ItemsControl ItemsSource="{Binding Parameters}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel ItemSpacing="16" LineSpacing="8" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:ParameterInputViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding Label}" VerticalAlignment="Center" FontFamily="{DynamicResource MonoFont}"
+                         FontSize="{DynamicResource FontSizeMono}" Foreground="{DynamicResource SyntaxParameterBrush}" />
+              <TextBox Text="{Binding Value}" PlaceholderText="{Binding Watermark}" Width="180"
+                       AutomationProperties.Name="{Binding Name}" Classes="param" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" Text="{Binding ParameterHint}" IsVisible="{Binding IsBatch}" />
+    </StackPanel>
+
+    <!-- ── Run bar ─────────────────────────────────────────────────────── -->
+    <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <DropDownButton Classes="ghost" ToolTip.Tip="Hedef sunucular — birden fazla seçilirse sorgu hepsinde çalışır"
+                        AutomationProperties.Name="Hedef sunucular">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconServer}" Classes="sm" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="{Binding TargetsLabel}" MaxWidth="160" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <DropDownButton.Flyout>
+            <Flyout Placement="BottomEdgeAlignedLeft">
+              <StackPanel Spacing="8" MinWidth="240">
+                <TextBlock Classes="section" Text="HEDEF SUNUCULAR" />
+                <ItemsControl ItemsSource="{Binding Targets}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ProfileChoiceViewModel">
+                      <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="260"
+                           Text="Diğer sunucularda stream'ler adına göre eşleştirilir." />
+              </StackPanel>
+            </Flyout>
+          </DropDownButton.Flyout>
+        </DropDownButton>
+
+        <DropDownButton Classes="ghost" ToolTip.Tip="Zaman aralığı (yalnızca bu çalıştırma için)" AutomationProperties.Name="Zaman aralığı">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconClock}" Classes="sm" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="{Binding TimeRange.Summary}" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <DropDownButton.Flyout>
+            <Flyout Placement="BottomEdgeAlignedLeft">
+              <views:TimeRangeEditor DataContext="{Binding TimeRange}" />
+            </Flyout>
+          </DropDownButton.Flyout>
+        </DropDownButton>
+
+        <Border Classes="divider" />
+
+        <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="Çekilecek en fazla kayıt (0 = tümü)">
+          <TextBlock Text="Limit" VerticalAlignment="Center" Classes="muted" />
+          <NumericUpDown Classes="compact" Value="{Binding Size}" Minimum="0" Maximum="100000" Increment="50" FormatString="0"
+                         Width="72" AutomationProperties.Name="Kayıt limiti" />
+        </StackPanel>
+
+        <Border Classes="divider" />
+
+        <ToggleButton IsChecked="{Binding IsBatch}" AutomationProperties.Name="Toplu"
+                      ToolTip.Tip="Toplu: parametrelere virgülle birden fazla değer yazın; her kombinasyon paralel çalışır">
+          <TextBlock Text="Toplu" />
+        </ToggleButton>
+        <ToggleButton IsChecked="{Binding IsLive}" AutomationProperties.Name="Canlı"
+                      ToolTip.Tip="Canlı takip: sorguyu aralıklarla yeniler, yeni kayıtları vurgular">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconLive}" Classes="sm" />
+            <TextBlock Text="Canlı" />
+          </StackPanel>
+        </ToggleButton>
+        <ComboBox ItemsSource="{x:Static vm:QueryTabViewModel.LiveIntervals}" SelectedItem="{Binding LiveInterval}"
+                  MinWidth="72" AutomationProperties.Name="Canlı takip aralığı" ToolTip.Tip="Canlı takip aralığı" />
+      </StackPanel>
+
+      <TextBlock Grid.Column="2" Classes="muted" Text="{Binding StatusText}" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" MaxWidth="280" />
+
+      <Button Grid.Column="3" Classes="primary" Command="{Binding RunCommand}" AutomationProperties.Name="Çalıştır"
+              ToolTip.Tip="Çalıştır (Ctrl+Enter) · çalışırken Durdur" MinWidth="104">
+        <StackPanel Orientation="Horizontal" Spacing="7">
+          <PathIcon Data="{StaticResource IconPlay}" Classes="xs" IsVisible="{Binding !IsRunning}" />
+          <PathIcon Data="{StaticResource IconStop}" Classes="xs" IsVisible="{Binding IsRunning}" />
+          <TextBlock Text="{Binding RunLabel}" />
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <!-- ── Messages ────────────────────────────────────────────────────── -->
+    <StackPanel Grid.Row="5" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,-4,0,10"
+                  IsVisible="{Binding ValidationText, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <PathIcon Data="{StaticResource IconWarning}" Classes="sm" Foreground="{DynamicResource DangerBrush}" />
+        <TextBlock Classes="error" Text="{Binding ValidationText}" VerticalAlignment="Center" />
+      </StackPanel>
+      <Border Background="{DynamicResource DangerMutedBrush}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
+              CornerRadius="{DynamicResource RadiusMd}" Padding="12,9" Margin="0,0,0,10"
+              IsVisible="{Binding ErrorText, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <PathIcon Data="{StaticResource IconWarning}" Classes="sm" Foreground="{DynamicResource DangerBrush}" VerticalAlignment="Top" Margin="0,2,0,0" />
+          <SelectableTextBlock Grid.Column="1" Text="{Binding ErrorText}" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+      <ItemsControl ItemsSource="{Binding Outcomes}" Margin="0,0,0,8">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:OutcomeMessage">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+              <PathIcon Data="{StaticResource IconWarning}" Classes="xs" Foreground="{DynamicResource WarningBrush}" />
+              <SelectableTextBlock Text="{Binding Text}" Classes="muted" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <!-- ── Results ─────────────────────────────────────────────────────── -->
+    <Border Grid.Row="6" Classes="surface" ClipToBounds="True" DataContext="{Binding Results}" x:DataType="vm:ResultsViewModel">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Toolbar -->
+        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,6,8,6">
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12">
+            <Border Classes="segmented">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton Content="Tablo" IsChecked="{Binding IsTableView}" AutomationProperties.Name="Tablo" />
+                <RadioButton Content="Analiz" IsChecked="{Binding IsAnalysisView}" AutomationProperties.Name="Analiz" />
+              </StackPanel>
+            </Border>
+            <TextBlock Grid.Column="1" Text="{Binding CountText}" VerticalAlignment="Center" Classes="muted"
+                       IsVisible="{Binding HasResult}" />
+            <ItemsControl Grid.Column="2" ItemsSource="{Binding Filters}" VerticalAlignment="Center">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel ItemSpacing="6" LineSpacing="4" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:FilterChip">
+                  <Border Classes="badge accent" Padding="8,1,2,1">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                      <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                      <Button Classes="icon sm" MinWidth="18" MinHeight="18" Padding="4"
+                              Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).RemoveFilterCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Filtreyi kaldır" AutomationProperties.Name="Filtreyi kaldır">
+                        <PathIcon Data="{StaticResource IconClose}" Width="8" Height="8" />
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">
+              <Button Classes="link" Content="Filtreleri temizle" Command="{Binding ClearFiltersCommand}" IsVisible="{Binding HasFilters}" />
+              <TextBox x:Name="GridSearch" Text="{Binding SearchText}" PlaceholderText="Sonuçlarda ara" Width="220"
+                       AutomationProperties.Name="Sonuçlarda ara" ToolTip.Tip="Joker karakterler: * ve ?  (Ctrl+F)">
+                <TextBox.InnerLeftContent>
+                  <PathIcon Data="{StaticResource IconQuery}" Classes="sm" Margin="8,0,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </TextBox.InnerLeftContent>
+              </TextBox>
+              <ToggleButton Classes="icon" IsChecked="{Binding IsFilterMode}" AutomationProperties.Name="Filtre modu"
+                            ToolTip.Tip="Açık: eşleşmeyen satırları gizle · Kapalı: eşleşmeleri vurgula">
+                <PathIcon Data="{StaticResource IconFilter}" />
+              </ToggleButton>
+              <ToggleButton Classes="icon" IsChecked="{Binding IsDetailOpen}" AutomationProperties.Name="Ayrıntı paneli"
+                            ToolTip.Tip="Mesaj ayrıntı panelini aç/kapat">
+                <PathIcon Data="{StaticResource IconPanel}" />
+              </ToggleButton>
+              <Border Classes="divider" />
+              <DropDownButton Classes="ghost" IsEnabled="{Binding HasRows}" AutomationProperties.Name="Dışa aktar">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Data="{StaticResource IconDownload}" Classes="sm" Foreground="{DynamicResource TextSecondaryBrush}" />
+                  <TextBlock Text="Dışa aktar" />
+                </StackPanel>
+                <DropDownButton.Flyout>
+                  <MenuFlyout Placement="BottomEdgeAlignedRight">
+                    <MenuItem Header="CSV (.csv)" Command="{Binding ExportCsvCommand}" />
+                    <MenuItem Header="Excel (.xlsx)" Command="{Binding ExportExcelCommand}" />
+                  </MenuFlyout>
+                </DropDownButton.Flyout>
+              </DropDownButton>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="2" MinHeight="2" CornerRadius="0"
+                     IsVisible="{Binding $parent[UserControl].((vm:QueryTabViewModel)DataContext).IsRunning}" />
+
+        <!-- Table view -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding IsTableView}">
+          <Panel Grid.Column="0">
+            <DataGrid x:Name="ResultGrid" ItemsSource="{Binding View}" SelectedItem="{Binding SelectedRow}"
+                      IsReadOnly="True" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
+                      SelectionMode="Single" HeadersVisibility="Column" ClipboardCopyMode="None"
+                      IsVisible="{Binding HasRows}" AutomationProperties.Name="Sonuç tablosu" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" IsVisible="{Binding !HasResult}">
+              <PathIcon Data="{StaticResource IconPlay}" Width="22" Height="22" Foreground="{DynamicResource BorderStrongBrush}" />
+              <TextBlock HorizontalAlignment="Center" FontWeight="Medium" Text="Henüz çalıştırılmadı" />
+              <TextBlock HorizontalAlignment="Center" Classes="muted" Text="Sonuçları görmek için Çalıştır'a basın (Ctrl+Enter)." />
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" IsVisible="{Binding IsEmptyResult}">
+              <PathIcon Data="{StaticResource IconQuery}" Width="22" Height="22" Foreground="{DynamicResource BorderStrongBrush}" />
+              <TextBlock HorizontalAlignment="Center" FontWeight="Medium" Text="Bu sorgu için kayıt bulunamadı" />
+              <TextBlock HorizontalAlignment="Center" Classes="muted" Text="Zaman aralığını genişletmeyi veya parametreleri değiştirmeyi deneyin." />
+            </StackPanel>
+          </Panel>
+
+          <GridSplitter Grid.Column="1" Width="4" Background="Transparent" ResizeDirection="Columns"
+                        IsVisible="{Binding IsDetailOpen}" />
+
+          <!-- Message detail -->
+          <Border Grid.Column="2" Width="360" x:Name="DetailPanel" IsVisible="{Binding IsDetailOpen}"
+                  Background="{DynamicResource BgSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
+            <DockPanel Margin="10,10,6,6">
+              <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="4,0,4,6">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="section" Text="MESAJ AYRINTISI" VerticalAlignment="Center" />
+                  <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="48" IsVisible="{Binding IsDetailLoading}" />
+                </Grid>
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="{Binding DetailNotice}"
+                           IsVisible="{Binding DetailNotice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <TextBox Text="{Binding DetailFilter}" PlaceholderText="Alan veya değer ara" AutomationProperties.Name="Ayrıntıda ara"
+                         IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </StackPanel>
+              <Panel>
+                <TextBlock Classes="muted" Text="Ayrıntılarını görmek için bir satır seçin." TextWrapping="Wrap" Margin="4,0"
+                           IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNull}}" />
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding DetailFields}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="vm:FieldValueViewModel">
+                        <Border Classes="field-row hover-host">
+                          <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="2">
+                            <TextBlock Text="{Binding Name}" FontSize="{DynamicResource FontSizeSm}" FontWeight="Medium"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" Classes="hover-actions" VerticalAlignment="Top">
+                              <Button Classes="icon sm" ToolTip.Tip="Sorguya ekle (AND alan:değer)" AutomationProperties.Name="Sorguya ekle"
+                                      Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).IncludeFieldCommand}" CommandParameter="{Binding}">
+                                <PathIcon Data="{StaticResource IconAdd}" />
+                              </Button>
+                              <Button Classes="icon sm" ToolTip.Tip="Hariç tut (AND NOT alan:değer)" AutomationProperties.Name="Hariç tut"
+                                      Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).ExcludeFieldCommand}" CommandParameter="{Binding}">
+                                <PathIcon Data="{StaticResource IconMinus}" />
+                              </Button>
+                              <Button Classes="icon sm" ToolTip.Tip="Değeri kopyala" AutomationProperties.Name="Değeri kopyala"
+                                      Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).CopyFieldValueCommand}" CommandParameter="{Binding}">
+                                <PathIcon Data="{StaticResource IconCopy}" />
+                              </Button>
+                              <Button Classes="icon sm" ToolTip.Tip="Büyük pencerede göster (JSON/XML biçimlendirme)" AutomationProperties.Name="Büyük pencerede göster"
+                                      Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).ShowFieldValueCommand}" CommandParameter="{Binding}">
+                                <PathIcon Data="{StaticResource IconExpand}" />
+                              </Button>
+                            </StackPanel>
+                            <SelectableTextBlock Grid.Row="1" Text="{Binding Value}" TextWrapping="Wrap"
+                                                 FontFamily="{DynamicResource MonoFont}" FontSize="{DynamicResource FontSizeMono}"
+                                                 MaxHeight="200" />
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Panel>
+            </DockPanel>
+          </Border>
+        </Grid>
+
+        <!-- Analysis view -->
+        <Grid Grid.Row="2" RowDefinitions="Auto,170,Auto,*" Margin="18,14" IsVisible="{Binding IsAnalysisView}">
+          <TextBlock Classes="section" Text="ZAMANA GÖRE KAYIT SAYISI" Margin="0,0,0,10" />
+          <controls:HistogramControl Grid.Row="1" Buckets="{Binding Histogram}" BucketCommand="{Binding FilterByBucketCommand}" />
+          <Grid Grid.Row="2" ColumnDefinitions="Auto,220,*" ColumnSpacing="12" Margin="0,22,0,8">
+            <TextBlock Classes="section" Text="ALAN DAĞILIMI" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding Columns}" SelectedItem="{Binding AnalysisField}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="Analiz alanı" />
+            <TextBlock Grid.Column="2" Classes="muted" VerticalAlignment="Center"
+                       Text="{Binding AnalysisCardinality, StringFormat='{}{0:N0} farklı değer · tıklayınca tablo filtrelenir'}" />
+          </Grid>
+          <ScrollViewer Grid.Row="3">
+            <ItemsControl ItemsSource="{Binding TopValues}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="core:ValueCount">
+                  <Button Classes="row"
+                          Command="{Binding $parent[ItemsControl].((vm:ResultsViewModel)DataContext).FilterByValueCommand}"
+                          CommandParameter="{Binding}">
+                    <Grid ColumnDefinitions="2*,3*,64,48" ColumnSpacing="12">
+                      <TextBlock Text="{Binding Value}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Value}" VerticalAlignment="Center" />
+                      <ProgressBar Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Ratio}" Height="4" MinHeight="4"
+                                   CornerRadius="2" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                 Text="{Binding Count, StringFormat='{}{0:N0}'}" FontFamily="{DynamicResource MonoFont}" FontSize="{DynamicResource FontSizeMono}" />
+                      <TextBlock Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center" Classes="muted"
+                                 Text="{Binding Ratio, StringFormat='{}{0:P0}'}" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

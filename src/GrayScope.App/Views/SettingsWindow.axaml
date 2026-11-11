@@ -1,0 +1,194 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GrayScope.App.ViewModels"
+        xmlns:domain="using:GrayScope.Core.Domain"
+        xmlns:controls="using:GrayScope.App.Controls"
+        x:Class="GrayScope.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="Ayarlar ve Tanımlamalar"
+        Width="900" Height="620" MinWidth="740" MinHeight="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" CanMinimize="False"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="34">
+
+  <DockPanel>
+    <controls:WindowTitleBar DockPanel.Dock="Top" />
+
+    <TabControl Margin="16,4,16,16" Padding="0,12,0,0">
+      <!-- ── Graylog profiles ──────────────────────────────────────────── -->
+      <TabItem Header="Graylog profilleri">
+        <Grid ColumnDefinitions="250,*" ColumnSpacing="16">
+          <Border Classes="surface" Padding="6">
+            <DockPanel>
+              <Button DockPanel.Dock="Top" Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,4"
+                      Command="{Binding NewProfileCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <PathIcon Data="{StaticResource IconAdd}" Classes="sm" Foreground="{DynamicResource AccentBrush}" />
+                  <TextBlock Text="Yeni profil" Foreground="{DynamicResource AccentBrush}" />
+                </StackPanel>
+              </Button>
+              <Panel>
+                <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Background="Transparent"
+                         AutomationProperties.Name="Profil listesi">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="domain:GraylogProfile">
+                      <StackPanel Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+                          <Border Classes="badge accent" IsVisible="{Binding IsDefault}"><TextBlock Text="varsayılan" /></Border>
+                          <Border Classes="badge" IsVisible="{Binding !IsActive}"><TextBlock Text="pasif" /></Border>
+                          <Border Classes="badge danger" IsVisible="{Binding NeedsToken}"><TextBlock Text="token yok" /></Border>
+                        </StackPanel>
+                        <TextBlock Classes="muted" Text="{Binding BaseUrl}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Classes="muted" Text="Henüz Graylog sunucusu tanımlanmadı." TextWrapping="Wrap" Margin="10"
+                           IsVisible="{Binding HasNoProfiles}" />
+              </Panel>
+            </DockPanel>
+          </Border>
+
+          <Border Grid.Column="1" Classes="surface" Padding="22,18">
+            <Panel>
+              <TextBlock Classes="muted" Text="Düzenlemek için bir profil seçin ya da yeni profil ekleyin." HorizontalAlignment="Center"
+                         VerticalAlignment="Center" IsVisible="{Binding !HasEditor}" />
+              <ScrollViewer IsVisible="{Binding HasEditor}">
+                <StackPanel Spacing="14" MaxWidth="520" HorizontalAlignment="Left" DataContext="{Binding Editor}" x:DataType="vm:ProfileEditorViewModel">
+                  <TextBlock Classes="title" Text="{Binding Heading}" />
+                  <StackPanel>
+                    <TextBlock Classes="label" Text="Ad" />
+                    <TextBox Text="{Binding Name}" PlaceholderText="örn. Ana Sunucu" AutomationProperties.Name="Profil adı" />
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Classes="label" Text="Sunucu adresi" />
+                    <TextBox Text="{Binding BaseUrl}" PlaceholderText="https://graylog.sirket.com:9000" AutomationProperties.Name="Sunucu adresi" Classes="mono" />
+                    <TextBlock Classes="muted" Text="Sonuna /api yazmanız gerekmez, otomatik eklenir." Margin="0,5,0,0" />
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Classes="label" Text="API token" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                      <TextBox Text="{Binding Token}" PasswordChar="{Binding TokenMask}" PlaceholderText="{Binding TokenWatermark}"
+                               Classes="mono" AutomationProperties.Name="API token" />
+                      <ToggleButton Grid.Column="1" IsChecked="{Binding RevealToken}" Content="Göster" />
+                    </Grid>
+                    <TextBlock Classes="muted" TextWrapping="Wrap" Margin="0,5,0,0"
+                               Text="Windows hesabınıza bağlı olarak (DPAPI) şifrelenir; hiçbir yerde düz metin tutulmaz." />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="20">
+                    <CheckBox Content="Varsayılan profil" IsChecked="{Binding IsDefault}" />
+                    <CheckBox Content="Aktif" IsChecked="{Binding IsActive}" />
+                  </StackPanel>
+
+                  <Border Background="{DynamicResource BgElevatedBrush}" CornerRadius="{DynamicResource RadiusMd}" Padding="12,10">
+                    <StackPanel Spacing="8">
+                      <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Command="{Binding TestCommand}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconServer}" Classes="sm" />
+                            <TextBlock Text="Bağlantıyı test et" IsVisible="{Binding !IsTesting}" />
+                            <TextBlock Text="İptal" IsVisible="{Binding IsTesting}" />
+                          </StackPanel>
+                        </Button>
+                        <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsTesting}" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding TestSucceeded}">
+                        <Ellipse Width="7" Height="7" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding TestResult}" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding TestResult}" Classes="error">
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="!TestSucceeded" />
+                            <Binding Path="TestResult" Converter="{x:Static ObjectConverters.IsNotNull}" />
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                      </TextBlock>
+                    </StackPanel>
+                  </Border>
+
+                  <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,6,0,0">
+                    <Button Classes="danger ghost" Command="{Binding DeleteCommand}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconDelete}" Classes="sm" />
+                        <TextBlock Text="Sil" />
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Classes="primary" Content="Kaydet" MinWidth="88" Command="{Binding SaveCommand}" />
+                  </Grid>
+                </StackPanel>
+              </ScrollViewer>
+            </Panel>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- ── Data & appearance ─────────────────────────────────────────── -->
+      <TabItem Header="Veri ve görünüm">
+        <ScrollViewer>
+          <StackPanel Spacing="12" MaxWidth="680" HorizontalAlignment="Left">
+            <Border Classes="surface" Padding="18,14">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="heading" Text="Tema" />
+                  <TextBlock Classes="muted" Text="Seçim bir sonraki açılışta da korunur." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsDark, Mode=OneWay}" Command="{Binding ToggleThemeCommand}"
+                              OnContent="Koyu" OffContent="Açık" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="surface" Padding="18,14">
+              <StackPanel Spacing="10">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="heading" Text="Yedekleme" />
+                  <TextBlock Classes="muted" TextWrapping="Wrap" Text="Profiller, klasörler ve sorgular (stream'leriyle) tek bir JSON dosyasına aktarılır. Geri yüklemede aynı isimli kayıtların üzerine yazılmaz." />
+                </StackPanel>
+                <CheckBox Content="Token'ları da yedekle (yalnızca bu Windows kullanıcısıyla geri yüklenebilir)" IsChecked="{Binding IncludeTokensInBackup}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Command="{Binding BackupCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconDownload}" Classes="sm" />
+                      <TextBlock Text="Yedekle…" />
+                    </StackPanel>
+                  </Button>
+                  <Button Command="{Binding RestoreCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconUpload}" Classes="sm" />
+                      <TextBlock Text="Yedekten geri yükle…" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="surface" Padding="18,14">
+              <StackPanel Spacing="10">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="heading" Text="GrayScope 1'den geçiş" />
+                  <TextBlock Classes="muted" TextWrapping="Wrap"
+                             Text="GrayScope 1 veritabanını (genellikle GrayScope\data\grayscope.db) seçin; profiller, klasörler, sorgular ve stream'ler aktarılır. GrayScope 1 yedek dosyaları 'Yedekten geri yükle' ile de açılabilir." />
+                </StackPanel>
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="{x:Static vm:SettingsViewModel.LegacyKeyHint}" />
+                <Button Content="GrayScope 1 veritabanını içe aktar…" Command="{Binding ImportLegacyCommand}" HorizontalAlignment="Left" />
+              </StackPanel>
+            </Border>
+
+            <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="{DynamicResource RadiusMd}" Padding="14,10"
+                    IsVisible="{Binding DataStatus, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <SelectableTextBlock Text="{Binding DataStatus}" TextWrapping="Wrap" />
+            </Border>
+
+            <StackPanel Spacing="4" Margin="2,6,0,0">
+              <TextBlock Classes="section" Text="VERİ KLASÖRÜ" />
+              <SelectableTextBlock Text="{Binding DataDirectory}" FontFamily="{DynamicResource MonoFont}" FontSize="{DynamicResource FontSizeSm}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

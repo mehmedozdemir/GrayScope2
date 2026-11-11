@@ -1,0 +1,173 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GrayScope.App.ViewModels"
+        xmlns:views="using:GrayScope.App.Views"
+        xmlns:controls="using:GrayScope.App.Controls"
+        xmlns:domain="using:GrayScope.Core.Domain"
+        x:Class="GrayScope.App.Views.QueryEditorWindow"
+        x:DataType="vm:QueryEditorViewModel"
+        Title="{Binding WindowTitle}"
+        Width="720" Height="820" MinWidth="600" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" CanMinimize="False"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="34">
+
+  <DockPanel>
+    <controls:WindowTitleBar DockPanel.Dock="Top" />
+
+    <!-- Footer -->
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+            Background="{DynamicResource BgSurfaceBrush}" Padding="20,10">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Classes="error" Text="{Binding FormError}" VerticalAlignment="Center"
+                   IsVisible="{Binding FormError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <Button Grid.Column="1" Content="Vazgeç" IsCancel="True" x:Name="CancelButton" />
+        <Button Grid.Column="2" Classes="primary" Content="Kaydet" x:Name="SaveButton" MinWidth="88"
+                IsEnabled="{Binding !IsSaving}" ToolTip.Tip="Kaydet (Ctrl+S)" />
+      </Grid>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Spacing="22" Margin="24,18,24,24">
+
+        <!-- General -->
+        <StackPanel Spacing="12">
+          <TextBlock Classes="section" Text="GENEL" />
+          <Grid ColumnDefinitions="3*,2*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Classes="label" Text="Ad" />
+            <TextBox Grid.Row="1" Text="{Binding Name}" PlaceholderText="örn. Şehir bazlı 200 dışı yanıtlar" AutomationProperties.Name="Sorgu adı" x:Name="NameBox" />
+            <TextBlock Grid.Row="2" Classes="error" Margin="0,4,0,0" Text="{Binding NameError}" IsVisible="{Binding NameError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <TextBlock Grid.Column="1" Classes="label" Text="Klasör" />
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="Klasör" />
+          </Grid>
+          <Grid ColumnDefinitions="3*,2*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+            <TextBlock Classes="label" Text="Açıklama" />
+            <TextBox Grid.Row="1" Text="{Binding Description}" PlaceholderText="İsteğe bağlı — ağaçta ipucu olarak gösterilir" AutomationProperties.Name="Açıklama" />
+            <TextBlock Grid.Column="1" Classes="label" Text="Graylog profili" />
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="Graylog profili">
+              <ComboBox.ItemTemplate>
+                <DataTemplate DataType="domain:GraylogProfile">
+                  <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding BaseUrl}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </Grid>
+        </StackPanel>
+
+        <!-- Query -->
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="SORGU (LUCENE)" />
+          <Border Classes="editor" Height="120">
+            <controls:LuceneEditor Code="{Binding Template}" CompletionFields="{Binding FieldSuggestions}"
+                                   AutomationProperties.Name="Sorgu metni" />
+          </Border>
+          <TextBlock Classes="error" Text="{Binding TemplateError}" IsVisible="{Binding TemplateError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <TextBlock Classes="muted" Text="{Binding ParameterSummary}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Streams -->
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Classes="section" Text="STREAM'LER" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="muted" Margin="8,0,0,0" VerticalAlignment="Center"
+                       Text="{Binding SelectedStreamCount, StringFormat='{}{0} seçili · boşsa tümü'}" />
+            <Button Grid.Column="2" Classes="icon" Command="{Binding RefreshStreamsCommand}" ToolTip.Tip="Stream listesini yenile"
+                    AutomationProperties.Name="Stream listesini yenile">
+              <PathIcon Data="{StaticResource IconRefresh}" Classes="sm" />
+            </Button>
+          </Grid>
+          <Border Classes="editor" Padding="0" Height="180">
+            <DockPanel>
+              <TextBox DockPanel.Dock="Top" Text="{Binding StreamFilter}" PlaceholderText="Stream ara" BorderThickness="0,0,0,1"
+                       CornerRadius="6,6,0,0" Background="Transparent" AutomationProperties.Name="Stream ara">
+                <TextBox.InnerLeftContent>
+                  <PathIcon Data="{StaticResource IconQuery}" Classes="sm" Margin="8,0,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </TextBox.InnerLeftContent>
+              </TextBox>
+              <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="2" IsVisible="{Binding IsLoadingStreams}" />
+              <Panel>
+                <ScrollViewer Padding="10,4">
+                  <ItemsControl ItemsSource="{Binding Streams}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="vm:StreamChoiceViewModel">
+                        <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected}" IsVisible="{Binding IsVisible}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" Margin="16"
+                            IsVisible="{Binding StreamError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <PathIcon Data="{StaticResource IconWarning}" Foreground="{DynamicResource WarningBrush}" Classes="sm" />
+                    <TextBlock Text="{Binding StreamError}" TextWrapping="Wrap" MaxWidth="520" Classes="muted" />
+                  </StackPanel>
+                  <Button Classes="link" Content="Yeniden dene" HorizontalAlignment="Center" Command="{Binding RefreshStreamsCommand}" />
+                </StackPanel>
+              </Panel>
+            </DockPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Fields -->
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="GÖSTERİLECEK ALANLAR" />
+          <ItemsControl ItemsSource="{Binding Fields}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel ItemSpacing="6" LineSpacing="6" /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="x:String">
+                <Border Classes="badge" Padding="2,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="0">
+                    <Button Classes="icon sm" MinWidth="18" MinHeight="18" Padding="3" ToolTip.Tip="Sola taşı"
+                            AutomationProperties.Name="Sola taşı"
+                            Command="{Binding $parent[ItemsControl].((vm:QueryEditorViewModel)DataContext).MoveFieldLeftCommand}" CommandParameter="{Binding}">
+                      <TextBlock Text="‹" FontSize="12" Margin="0,-2,0,0" />
+                    </Button>
+                    <TextBlock Text="{Binding}" VerticalAlignment="Center" FontFamily="{DynamicResource MonoFont}"
+                               FontSize="{DynamicResource FontSizeSm}" Margin="2,0" />
+                    <Button Classes="icon sm" MinWidth="18" MinHeight="18" Padding="4" ToolTip.Tip="Alanı kaldır"
+                            AutomationProperties.Name="Alanı kaldır"
+                            Command="{Binding $parent[ItemsControl].((vm:QueryEditorViewModel)DataContext).RemoveFieldCommand}" CommandParameter="{Binding}">
+                      <PathIcon Data="{StaticResource IconClose}" Width="8" Height="8" />
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <AutoCompleteBox Text="{Binding NewField}" ItemsSource="{Binding FieldSuggestions}" FilterMode="ContainsOrdinal"
+                             PlaceholderText="Alan adı yazıp Enter'a basın (virgülle birden fazla)" x:Name="FieldInput"
+                             AutomationProperties.Name="Alan ekle" MaxDropDownHeight="240" />
+            <Button Grid.Column="1" Content="Ekle" Command="{Binding AddFieldCommand}" />
+          </Grid>
+          <TextBlock Classes="muted" Text="Boş bırakılırsa timestamp, source ve message gösterilir." />
+        </StackPanel>
+
+        <!-- Time range & result -->
+        <StackPanel Spacing="12">
+          <TextBlock Classes="section" Text="ZAMAN ARALIĞI VE SONUÇ" />
+          <views:TimeRangeEditor DataContext="{Binding TimeRange}" />
+          <Grid ColumnDefinitions="*,Auto,120" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+            <TextBlock Classes="label" Text="Varsayılan sıralama alanı" />
+            <AutoCompleteBox Grid.Row="1" Text="{Binding SortField}" ItemsSource="{Binding Fields}" FilterMode="ContainsOrdinal"
+                             PlaceholderText="Boşsa Graylog sırası (en yeni önce)" AutomationProperties.Name="Sıralama alanı" />
+            <TextBlock Grid.Column="1" Classes="label" Text="Yön" />
+            <Border Grid.Row="1" Grid.Column="1" Classes="segmented" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton Content="Artan" IsChecked="{Binding SortAscending}" />
+                <RadioButton Content="Azalan" IsChecked="{Binding SortDescending}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Grid.Column="2" Classes="label" Text="Sonuç limiti" />
+            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ResultSize}" Minimum="0" Maximum="100000" Increment="50"
+                           FormatString="0" Classes="compact" AutomationProperties.Name="Sonuç limiti" />
+            <TextBlock Grid.Row="2" Grid.Column="2" Classes="muted" Margin="0,4,0,0" Text="0 = tüm kayıtlar" />
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
