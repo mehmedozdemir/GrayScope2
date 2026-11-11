@@ -6,6 +6,8 @@ Bu projedeki tüm önemli değişiklikler bu dosyada belgelenir. Format
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-11
+
 ### Added
 - GrayScope 1'in .NET 10 + Avalonia 12 ile yeniden yazımı: üç katmanlı mimari
   (Core / Infrastructure / App), merkezi paket sabitleme, uyarısız derleme ve CI pipeline'ı.
@@ -44,3 +46,6 @@ Bu projedeki tüm önemli değişiklikler bu dosyada belgelenir. Format
 
 ### Security
 - XML biçimlendirmede DTD işleme yasaklandı (XXE ve entity-genişleme DoS'una karşı).
+
+[Unreleased]: https://github.com/mehmedozdemir/GrayScope2/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/mehmedozdemir/GrayScope2/releases/tag/v0.1.0
